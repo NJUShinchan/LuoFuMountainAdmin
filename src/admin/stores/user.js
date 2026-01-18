@@ -5,7 +5,7 @@ import { unlockAdmin } from '@/admin/api/auth'
 
 export const useUserStore = defineStore('user', () => {
   const router = useRouter()
-  const token = ref(localStorage.getItem('adminToken') || '')
+  const token = ref(localStorage.getItem('Admin-Token') || '')
   const isAdminLoggedIn = ref(!!token.value)
 
   const login = async (password) => {
@@ -13,7 +13,7 @@ export const useUserStore = defineStore('user', () => {
       const res = await unlockAdmin({ password })
       token.value = res.data.token
       isAdminLoggedIn.value = true
-      localStorage.setItem('adminToken', res.data.token)
+      localStorage.setItem('Admin-Token', res.data.token)
       return true
     } catch (error) {
       console.error('管理员登录失败:', error)
@@ -24,12 +24,12 @@ export const useUserStore = defineStore('user', () => {
   const logout = () => {
     token.value = ''
     isAdminLoggedIn.value = false
-    localStorage.removeItem('adminToken')
+    localStorage.removeItem('Admin-Token')
     router.push('/admin/login')
   }
 
   const checkLoginStatus = () => {
-    const storedToken = localStorage.getItem('adminToken')
+    const storedToken = localStorage.getItem('Admin-Token')
     if (storedToken) {
       token.value = storedToken
       isAdminLoggedIn.value = true
