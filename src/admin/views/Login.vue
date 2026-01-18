@@ -28,13 +28,10 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { unlockAdmin } from '@/admin/api/auth' 
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-
-import { setToken } from '@/utils/request' 
-
-const loginFormRef = ref(null) 
+import { useUserStore } from '@/admin/stores/user' 
+const loginFormRef = ref(null)
 
 const loginForm = reactive({
   password: ''
@@ -42,19 +39,20 @@ const loginForm = reactive({
 
 const router = useRouter()
 const loading = ref(false)
+const userStore = useUserStore() 
 
 const handleLogin = async () => {
   loading.value = true
   try {
-    const res = await unlockAdmin(loginForm) 
-    
-    setToken(res.data.token)
-    
+    // 调用 Pinia 的登录方法
+    const ok = await userStore.login(loginForm.password)
+    if (!ok) {
+      ElMessage.error('密码错误或系统异常，请重试')
+      return
+    }
+
     ElMessage.success('登录成功')
     router.push('/admin/resource')
-  } catch (error) {
-    console.error('登录失败:', error)
-    ElMessage.error('密码错误或系统异常，请重试')
   } finally {
     loading.value = false
   }
