@@ -13,7 +13,7 @@ export default defineConfig({
     port: 3000,
     proxy: { // 可选：代理API请求
       '/api': {
-        target: 'https://your-api-domain.com',
+        target: 'https://www.picarran.xyz:8002/',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, '')
       }
