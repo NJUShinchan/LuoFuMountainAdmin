@@ -50,14 +50,16 @@
       </div>
     </el-card>
 
-    <!-- 新增/编辑弹窗 -->
+
     <el-dialog
       :title="dialogTitle"
       v-model="dialogVisible"
       :close-on-click-modal="false"
       width="500px"
+      @open="handleDialogOpen"
     >
-      <el-form ref="merchantForm" :model="merchantForm" label-width="80px">
+      
+      <el-form ref="merchantFormRef" :model="merchantForm" label-width="80px">
         <el-form-item label="名称" prop="name" :rules="[{ required: true, message: '请输入名称', trigger: 'blur' }]">
           <el-input v-model="merchantForm.name" placeholder="请输入商家名称" />
         </el-form-item>
@@ -70,7 +72,7 @@
           </el-select>
         </el-form-item>
         <el-form-item label="账号" prop="username" :rules="[{ required: true, message: '请输入账号', trigger: 'blur' }]">
-          <el-input v-model="merchantForm.username" placeholder="请输入登录账号" />
+          <el-input v-model="merchantForm.username" placeholder="请输入登录账号" :disabled="!!editingId" />
         </el-form-item>
         <el-form-item label="联系人" prop="contactName">
           <el-input v-model="merchantForm.contactName" placeholder="请输入联系人姓名" />
@@ -100,7 +102,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
 import { 
   getMerchantList, 
   createMerchant, 
@@ -110,17 +112,27 @@ import {
   updateMerchantStatus, 
   deleteMerchant 
 } from '@/admin/api/merchant'
-import { ElMessage, ElForm, ElMessageBox } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
+// 列表数据
 const merchantList = ref([])
 const loading = ref(false)
+
+// 分页数据
 const pagination = ref({
   current: 1,
   size: 10,
   total: 0
 })
+
+// 弹窗控制
 const dialogVisible = ref(false)
 const dialogTitle = ref('创建商家')
+
+
+const merchantFormRef = ref(null)
+
+
 const merchantForm = ref({
   name: '',
   type: '',
@@ -130,7 +142,7 @@ const merchantForm = ref({
   address: '',
   status: '1'
 })
-const merchantFormRef = ref(null)
+
 const editingId = ref(null)
 
 onMounted(() => {
@@ -158,8 +170,8 @@ const handlePageChange = (page) => {
   fetchMerchantList()
 }
 
-const handleAdd = () => {
-  dialogTitle.value = '创建商家'
+
+const resetFormData = () => {
   merchantForm.value = {
     name: '',
     type: '',
@@ -170,38 +182,69 @@ const handleAdd = () => {
     status: '1'
   }
   editingId.value = null
+}
+
+const handleAdd = () => {
+  dialogTitle.value = '创建商家'
+  resetFormData()
   dialogVisible.value = true
 }
 
 const handleEdit = (row) => {
   dialogTitle.value = '编辑商家'
+  
   merchantForm.value = { ...row }
+  
+  if (typeof merchantForm.value.status === 'number') {
+    merchantForm.value.status = merchantForm.value.status.toString()
+  }
+  
   editingId.value = row.merchantId
   dialogVisible.value = true
 }
 
+
+const handleDialogOpen = () => {
+  merchantFormRef.value?.clearValidate()
+}
+
 const handleSubmit = async () => {
   if (!merchantFormRef.value) return
-  await merchantFormRef.value.validate((valid) => {
-    if (valid) {
-      const data = {
-        ...merchantForm.value,
-        status: parseInt(merchantForm.value.status)
-      }
-      
-      if (editingId.value) {
-        // 编辑逻辑
-        updateMerchant({ ...data, merchantId: editingId.value })
-      } else {
-        // 新增逻辑
-        createMerchant(data)
-      }
-      
-      dialogVisible.value = false
-      fetchMerchantList()
-      ElMessage.success(editingId.value ? '更新成功' : '创建成功')
+
+  try {
+
+    const valid = await merchantFormRef.value.validate()
+    if (!valid) return
+
+    
+    const data = {
+      ...merchantForm.value,
+      status: parseInt(merchantForm.value.status) 
     }
-  })
+    
+    loading.value = true 
+    
+    
+    if (editingId.value) {
+      await updateMerchant({ ...data, merchantId: editingId.value })
+    } else {
+      await createMerchant(data)
+    }
+    
+    
+    dialogVisible.value = false
+    fetchMerchantList()
+    ElMessage.success(editingId.value ? '更新成功' : '创建成功')
+
+  } catch (error) {
+    console.error('提交失败:', error)
+    
+    if (!error.fields) {
+       ElMessage.error(error.message || '操作失败，请稍后重试')
+    }
+  } finally {
+    loading.value = false
+  }
 }
 
 const handleDetail = async (id) => {
