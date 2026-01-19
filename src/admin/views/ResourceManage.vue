@@ -74,8 +74,17 @@
         <el-form-item label="热度" prop="hotScore" :rules="[{ required: true, message: '请输入热度', trigger: 'blur' }]">
           <el-input v-model="resourceForm.hotScore" type="number" />
         </el-form-item>
-        <el-form-item label="内容JSON">
-          <el-input v-model="resourceForm.contentJson" type="textarea" :rows="5" />
+        
+        <el-form-item label="内容">
+          <el-button type="primary" @click="openContentEditor">
+            编辑内容
+          </el-button>
+          <span v-if="resourceForm.contentJson" style="margin-left: 10px; color: #67C23A;">
+            已配置
+          </span>
+          <span v-else style="margin-left: 10px; color: #F56C6C;">
+            未配置
+          </span>
         </el-form-item>
       </el-form>
       <template #footer>
@@ -83,12 +92,120 @@
         <el-button type="primary" @click="handleSubmit">确定</el-button>
       </template>
     </el-dialog>
+
+    <!-- 内容编辑弹窗 -->
+    <el-dialog
+      title="编辑资源内容"
+      v-model="contentDialogVisible"
+      width="700px"
+    >
+      <el-form :model="contentForm" label-width="100px">
+        <el-form-item label="标题">
+          <el-input v-model="contentForm.title" />
+        </el-form-item>
+        <el-form-item label="副标题">
+          <el-input v-model="contentForm.subtitle" />
+        </el-form-item>
+        <el-form-item label="简介">
+          <el-input v-model="contentForm.description" type="textarea" :rows="3" />
+        </el-form-item>
+
+        <!-- 核心：内容块编辑 -->
+        <el-form-item label="内容块">
+          <div
+            v-for="(item, index) in contentForm.items"
+            :key="index"
+            class="content-item"
+          >
+            <!-- 类型选择 -->
+            <el-select
+              v-model="item.type"
+              placeholder="类型"
+              style="width: 120px; margin-right: 10px;"
+            >
+              <el-option label="文本" value="text" />
+              <el-option label="图片" value="image" />
+              <el-option label="小贴士" value="tip" />
+            </el-select>
+
+            <!-- 文本 / 小贴士 -->
+            <template v-if="item.type === 'text' || item.type === 'tip'">
+              <el-input
+                v-model="item.value"
+                :placeholder="item.type === 'tip' ? '请输入小贴士内容' : '请输入文本内容'"
+                type="textarea"
+                :rows="2"
+                style="flex: 1;"
+              />
+            </template>
+
+            <!-- 图片 -->
+            <template v-else-if="item.type === 'image'">
+              <div class="image-item-editor">
+                <el-upload
+                  class="content-img-uploader"
+                  :show-file-list="false"
+                  :http-request="(option) => handleContentImageUpload(option, index)"
+                  accept="image/*"
+                >
+                  <img
+                    v-if="item.url"
+                    :src="item.url"
+                    class="content-img"
+                  />
+                  <el-icon v-else class="cover-uploader-icon">
+                    <Plus />
+                  </el-icon>
+                </el-upload>
+                <el-input
+                  v-model="item.url"
+                  placeholder="或直接粘贴图片 URL"
+                  style="margin-left: 10px; flex: 1;"
+                />
+              </div>
+            </template>
+
+            <!-- 排序 / 删除 -->
+            <div class="content-item-actions">
+              <el-button
+                link
+                type="primary"
+                @click="moveItem(index, -1)"
+                :disabled="index === 0"
+              >上移</el-button>
+              <el-button
+                link
+                type="primary"
+                @click="moveItem(index, 1)"
+                :disabled="index === contentForm.items.length - 1"
+              >下移</el-button>
+              <el-button
+                link
+                type="danger"
+                @click="removeItem(index)"
+              >删除</el-button>
+            </div>
+          </div>
+
+          <div style="margin-top: 8px;">
+            <el-button type="primary" link @click="addItem('text')">新增文本块</el-button>
+            <el-button type="primary" link @click="addItem('image')">新增图片块</el-button>
+            <el-button type="primary" link @click="addItem('tip')">新增小贴士</el-button>
+          </div>
+        </el-form-item>
+      </el-form>
+
+      <template #footer>
+        <el-button @click="contentDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmContent">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getResourceList, saveResource, deleteResource } from '@/admin/api/resource'
+import { getResourceList, saveResource, deleteResource, getResourceDetail } from '@/admin/api/resource'
 import { uploadFile } from '@/admin/api/upload'
 import { ElMessage, ElForm } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
@@ -112,6 +229,103 @@ const resourceForm = ref({
 })
 const resourceFormRef = ref(null)
 const editingId = ref(null)
+
+//内容编辑相关
+const contentDialogVisible = ref(false)
+const contentForm = ref({
+  title: '',
+  subtitle: '',
+  description: '',
+  items: []
+})
+
+const emptyContentForm = () => ({
+  title: '',
+  subtitle: '',
+  description: '',
+  items: []
+})
+
+// 打开内容编辑弹窗
+const openContentEditor = () => {
+  if (resourceForm.value.contentJson) {
+    try {
+      const parsed = JSON.parse(resourceForm.value.contentJson)
+      contentForm.value = {
+        title: parsed.title || '',
+        subtitle: parsed.subtitle || '',
+        description: parsed.description || '',
+        items: Array.isArray(parsed.items) ? parsed.items : []
+      }
+
+      // 兼容旧数据：images / tips 转成 items
+      if (!contentForm.value.items.length) {
+        const items = []
+        if (Array.isArray(parsed.images)) {
+          parsed.images.forEach(url => {
+            items.push({ type: 'image', url })
+          })
+        }
+        if (Array.isArray(parsed.tips)) {
+          parsed.tips.forEach(value => {
+            items.push({ type: 'tip', value })
+          })
+        }
+        contentForm.value.items = items
+      }
+    } catch (e) {
+      contentForm.value = emptyContentForm()
+    }
+  } else {
+    contentForm.value = emptyContentForm()
+  }
+  contentDialogVisible.value = true
+}
+
+// 确认内容，写回 JSON 字符串
+const confirmContent = () => {
+  resourceForm.value.contentJson = JSON.stringify(contentForm.value)
+  contentDialogVisible.value = false
+}
+
+// 新增内容块
+const addItem = (type = 'text') => {
+  const item = { type }
+  if (type === 'image') {
+    item.url = ''
+  } else {
+    item.value = ''
+  }
+  contentForm.value.items.push(item)
+}
+
+// 删除内容块
+const removeItem = (index) => {
+  contentForm.value.items.splice(index, 1)
+}
+
+// 上移 / 下移
+const moveItem = (index, step) => {
+  const newIndex = index + step
+  if (newIndex < 0 || newIndex >= contentForm.value.items.length) return
+  const items = contentForm.value.items
+  const [moved] = items.splice(index, 1)
+  items.splice(newIndex, 0, moved)
+}
+
+// 内容图片上传
+const handleContentImageUpload = async (option, index) => {
+  const { file, onSuccess, onError } = option
+  try {
+    const res = await uploadFile(file, 'image')
+    contentForm.value.items[index].url = res.data.url
+    ElMessage.success('图片上传成功')
+    onSuccess && onSuccess(res)
+  } catch (e) {
+    ElMessage.error('图片上传失败')
+    onError && onError(e)
+  }
+}
 
 onMounted(() => {
   fetchResourceList()
@@ -146,11 +360,28 @@ const handleAdd = () => {
   dialogVisible.value = true
 }
 
-const handleEdit = (row) => {
+const handleEdit = async (row) => {
   dialogTitle.value = '编辑资源'
-  resourceForm.value = { ...row }
-  editingId.value = row.id
-  dialogVisible.value = true
+  try {
+    const res = await getResourceDetail(row.id)
+    const detail = res.data
+
+    resourceForm.value = {
+      id: detail.id,
+      name: detail.name,
+      type: detail.type,
+      coverImg: detail.coverImg || '',
+      latitude: detail.latitude ?? '',
+      longitude: detail.longitude ?? '',
+      hotScore: detail.hotScore ?? '',
+      contentJson: detail.contentJson || ''
+    }
+
+    editingId.value = detail.id
+    dialogVisible.value = true
+  } catch (e) {
+    ElMessage.error('获取资源详情失败')
+  }
 }
 
 // 封面图上传
@@ -241,5 +472,41 @@ const handleDelete = async (id) => {
 .cover-uploader-icon {
   font-size: 28px;
   color: #8c939d;
+}
+
+.content-item {
+  display: flex;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.content-item-actions {
+  display: flex;
+  flex-direction: column;
+  margin-left: 10px;
+}
+
+.image-item-editor {
+  display: flex;
+  align-items: center;
+  flex: 1;
+}
+
+.content-img-uploader {
+  width: 80px;
+  height: 80px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 4px;
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.content-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 </style>

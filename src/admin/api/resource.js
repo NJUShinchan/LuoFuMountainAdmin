@@ -26,3 +26,12 @@ export function getResourceList(params) {
     params
   })
 }
+
+// 3.2.4 查询资源详情
+export function getResourceDetail(id) {
+  return request({
+    url: '/admin/resource/detail',
+    method: 'get',
+    params: { id }
+  })
+}
