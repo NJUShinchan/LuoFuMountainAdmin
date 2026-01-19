@@ -8,7 +8,7 @@
         </div>
       </template>
       
-      <!-- 搜索区域 -->
+      
       <div class="search-container">
         <el-form :inline="true" class="demo-form-inline">
           <el-form-item label="名称/账号">
@@ -84,7 +84,7 @@
     </el-card>
 
 
-    <!-- 商家详情弹窗 -->
+    
     <el-dialog
       :title="detailDialogTitle"
       v-model="detailDialogVisible"
@@ -117,7 +117,7 @@
     </el-dialog>
 
 
-    <!-- 重置密码弹窗 -->
+    
     <el-dialog
       title="重置密码"
       v-model="resetPasswordDialogVisible"
@@ -136,7 +136,7 @@
     </el-dialog>
 
 
-    <!-- 创建/编辑商家弹窗 -->
+    
     <el-dialog
       :title="dialogTitle"
       v-model="dialogVisible"
@@ -206,33 +206,33 @@ import {
 } from '@/admin/api/merchant'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
-// 列表数据
+
 const merchantList = ref([])
 const loading = ref(false)
 
-// 分页数据
+
 const pagination = ref({
   current: 1,
   size: 10,
   total: 0
 })
 
-// 搜索表单
+
 const searchForm = ref({
   fuzzy: '',
   type: ''
 })
 
-// 弹窗控制
+
 const dialogVisible = ref(false)
 const dialogTitle = ref('创建商家')
 
-// 详情弹窗控制
+
 const detailDialogVisible = ref(false)
 const detailDialogTitle = ref('商家详情')
 const merchantDetail = ref(null)
 
-// 重置密码弹窗控制
+
 const resetPasswordDialogVisible = ref(false)
 const resetPasswordFormRef = ref(null)
 const resetPasswordForm = ref({
@@ -264,7 +264,7 @@ onMounted(() => {
 const fetchMerchantList = async () => {
   loading.value = true
   try {
-    console.log('搜索参数:', searchForm.value) // 调试信息
+    console.log('搜索参数:', searchForm.value) 
     const res = await getMerchantList({
       page: pagination.value.current,
       size: pagination.value.size,
@@ -273,9 +273,9 @@ const fetchMerchantList = async () => {
     })
     merchantList.value = res.data.records
     pagination.value.total = res.data.total
-    console.log('获取到的数据:', res.data.records) // 调试信息
+    console.log('获取到的数据:', res.data.records) 
   } catch (error) {
-    console.error('获取商家列表失败:', error) // 调试信息
+    console.error('获取商家列表失败:', error) /
     ElMessage.error('获取商家列表失败')
   } finally {
     loading.value = false
@@ -288,7 +288,7 @@ const handlePageChange = (page) => {
 }
 
 const handleSearch = () => {
-  console.log('执行搜索:', searchForm.value) // 调试信息
+  console.log('执行搜索:', searchForm.value) 
   pagination.value.current = 1
   fetchMerchantList()
 }
@@ -362,7 +362,7 @@ const handleSubmit = async () => {
     loading.value = true 
 
     if (editingId.value) {
-      // 只传递允许修改的字段
+      
       const updateData = {
         id: editingId.value,
         name: data.name,
@@ -390,7 +390,7 @@ const handleSubmit = async () => {
   }
 }
 
-// 详情功能
+
 const handleDetail = async (id) => {
   try {
     const res = await getMerchantDetail(id)
@@ -402,10 +402,9 @@ const handleDetail = async (id) => {
 }
 
 const handleDetailDialogOpen = () => {
-  // 可以在这里添加详情弹窗打开时的逻辑
 }
 
-// 重置密码功能
+
 const handleResetPassword = async (id) => {
   resetPasswordMerchantId = id
   resetPasswordForm.value.newPassword = ''
@@ -433,7 +432,7 @@ const confirmResetPassword = async () => {
   }
 }
 
-// 启用/禁用商家账号
+
 const handleToggleStatus = async (id, currentStatus) => {
   try {
     await ElMessageBox.confirm('确定要修改商家状态吗？', '提示', {
@@ -507,7 +506,7 @@ const handleDelete = async (id) => {
   padding: 20px;
 }
 
-/* 增加类型下拉框的宽度 */
+
 .demo-form-inline .el-form-item {
   margin-bottom: 10px;
 }
@@ -516,28 +515,27 @@ const handleDelete = async (id) => {
   width: 180px;
 }
 
-/* 按钮组样式 */
 .button-group {
   display: flex;
-  gap: 8px; /* 按钮之间的间距 */
-  flex-wrap: wrap; /* 允许换行 */
+  gap: 8px;
+  flex-wrap: wrap; 
 }
 
 .button-group .el-button {
-  flex: 1; /* 每个按钮平均分配空间 */
-  min-width: 80px; /* 最小宽度 */
-  white-space: nowrap; /* 防止文字换行 */
+  flex: 1; 
+  min-width: 80px; 
+  white-space: nowrap; 
 }
 
-/* 响应式调整 */
+
 @media (max-width: 768px) {
   .button-group {
-    flex-direction: column; /* 小屏幕下垂直排列 */
+    flex-direction: column; 
   }
   
   .button-group .el-button {
-    width: 100%; /* 小屏幕下占满宽度 */
-    margin-bottom: 8px; /* 垂直间距 */
+    width: 100%; 
+    margin-bottom: 8px; 
   }
 }
 </style>
