@@ -23,9 +23,10 @@ export function getMerchantDetail(id) {
   return request({
     url: '/admin/merchant/detail',
     method: 'get',
-    params: { id }
+    params: { id: id }
   })
 }
+
 
 // 3.4.4 修改商家信息
 export function updateMerchant(data) {

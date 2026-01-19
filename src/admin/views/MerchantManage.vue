@@ -8,8 +8,38 @@
         </div>
       </template>
       
+      <!-- 搜索区域 -->
+      <div class="search-container">
+        <el-form :inline="true" class="demo-form-inline">
+          <el-form-item label="名称/账号">
+            <el-input 
+              v-model="searchForm.fuzzy" 
+              placeholder="请输入商家名称或账号" 
+              clearable
+            />
+          </el-form-item>
+          <el-form-item label="类型">
+            <el-select 
+              v-model="searchForm.type" 
+              placeholder="请选择类型" 
+              clearable
+              style="width: 180px;"
+            >
+              <el-option label="景点" value="景点" />
+              <el-option label="住宿" value="住宿" />
+              <el-option label="餐饮" value="餐饮" />
+              <el-option label="商家" value="商家" />
+            </el-select>
+          </el-form-item>
+          <el-form-item>
+            <el-button type="primary" @click="handleSearch">查询</el-button>
+            <el-button @click="resetSearch">重置</el-button>
+          </el-form-item>
+        </el-form>
+      </div>
+      
       <el-table :data="merchantList" style="width: 100%" v-loading="loading">
-        <el-table-column prop="merchantId" label="商家ID" width="100" />
+        <el-table-column prop="id" label="商家ID" width="100" />
         <el-table-column prop="name" label="名称" />
         <el-table-column prop="type" label="类型" />
         <el-table-column prop="username" label="账号" />
@@ -21,19 +51,21 @@
           </template>
         </el-table-column>
         <el-table-column prop="resourceName" label="关联资源" />
-        <el-table-column label="操作" width="300">
+        <el-table-column label="操作" width="400">
           <template #default="{ row }">
-            <el-button size="small" @click="handleDetail(row.merchantId)">详情</el-button>
-            <el-button size="small" @click="handleEdit(row)">编辑</el-button>
-            <el-button size="small" @click="handleResetPassword(row.merchantId)">重置密码</el-button>
-            <el-button 
-              :type="row.status === 1 ? 'danger' : 'success'" 
-              size="small"
-              @click="handleToggleStatus(row.merchantId, row.status)"
-            >
-              {{ row.status === 1 ? '禁用' : '启用' }}
-            </el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row.merchantId)">删除</el-button>
+            <div class="button-group">
+              <el-button size="small" @click="handleDetail(row.id)">详情</el-button>
+              <el-button size="small" @click="handleEdit(row)">编辑</el-button>
+              <el-button size="small" @click="handleResetPassword(row.id)">重置密码</el-button>
+              <el-button 
+                :type="row.status === 1 ? 'danger' : 'success'" 
+                size="small"
+                @click="handleToggleStatus(row.id, row.status)"
+              >
+                {{ row.status === 1 ? '禁用' : '启用' }}
+              </el-button>
+              <el-button size="small" type="danger" @click="handleDelete(row.id)">删除</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -51,6 +83,59 @@
     </el-card>
 
 
+    <!-- 商家详情弹窗 -->
+    <el-dialog
+      :title="detailDialogTitle"
+      v-model="detailDialogVisible"
+      :close-on-click-modal="false"
+      width="600px"
+      @open="handleDetailDialogOpen"
+    >
+      <div v-if="merchantDetail" class="detail-content">
+        <el-descriptions :column="2" :border="true">
+          <el-descriptions-item label="商家ID">{{ merchantDetail.id }}</el-descriptions-item>
+          <el-descriptions-item label="名称">{{ merchantDetail.name }}</el-descriptions-item>
+          <el-descriptions-item label="类型">{{ merchantDetail.type }}</el-descriptions-item>
+          <el-descriptions-item label="账号">{{ merchantDetail.username }}</el-descriptions-item>
+          <el-descriptions-item label="资源ID">{{ merchantDetail.resourceId }}</el-descriptions-item>
+          <el-descriptions-item label="关联资源">{{ merchantDetail.resourceName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="状态">
+            <el-tag :type="merchantDetail.status === 1 ? 'success' : 'danger'">
+              {{ merchantDetail.status === 1 ? '启用' : '禁用' }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item label="创建时间">{{ merchantDetail.createdAt }}</el-descriptions-item>
+          <el-descriptions-item label="联系人">{{ merchantDetail.contactName || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="联系电话">{{ merchantDetail.contactPhone || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="地址" :span="2">{{ merchantDetail.address || '-' }}</el-descriptions-item>
+        </el-descriptions>
+      </div>
+      <template #footer>
+        <el-button @click="detailDialogVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+
+    <!-- 重置密码弹窗 -->
+    <el-dialog
+      title="重置密码"
+      v-model="resetPasswordDialogVisible"
+      :close-on-click-modal="false"
+      width="400px"
+    >
+      <el-form ref="resetPasswordFormRef" :model="resetPasswordForm" label-width="80px">
+        <el-form-item label="新密码" prop="newPassword" :rules="[{ required: true, message: '请输入新密码', trigger: 'blur' }]">
+          <el-input v-model="resetPasswordForm.newPassword" type="password" placeholder="请输入新密码" show-password />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="resetPasswordDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="confirmResetPassword">确定</el-button>
+      </template>
+    </el-dialog>
+
+
+    <!-- 创建/编辑商家弹窗 -->
     <el-dialog
       :title="dialogTitle"
       v-model="dialogVisible"
@@ -73,6 +158,12 @@
         </el-form-item>
         <el-form-item label="账号" prop="username" :rules="[{ required: true, message: '请输入账号', trigger: 'blur' }]">
           <el-input v-model="merchantForm.username" placeholder="请输入登录账号" :disabled="!!editingId" />
+        </el-form-item>
+        <el-form-item label="密码" prop="password" :rules="[{ required: true, message: '请输入密码', trigger: 'blur' }]">
+          <el-input v-model="merchantForm.password" placeholder="请输入初始密码" type="password" />
+        </el-form-item>
+        <el-form-item label="资源ID" prop="resourceId" :rules="[{ required: true, message: '请输入资源ID', trigger: 'blur' }]">
+          <el-input v-model="merchantForm.resourceId" placeholder="请输入关联商家资源ID" />
         </el-form-item>
         <el-form-item label="联系人" prop="contactName">
           <el-input v-model="merchantForm.contactName" placeholder="请输入联系人姓名" />
@@ -125,10 +216,28 @@ const pagination = ref({
   total: 0
 })
 
+// 搜索表单
+const searchForm = ref({
+  fuzzy: '',
+  type: ''
+})
+
 // 弹窗控制
 const dialogVisible = ref(false)
 const dialogTitle = ref('创建商家')
 
+// 详情弹窗控制
+const detailDialogVisible = ref(false)
+const detailDialogTitle = ref('商家详情')
+const merchantDetail = ref(null)
+
+// 重置密码弹窗控制
+const resetPasswordDialogVisible = ref(false)
+const resetPasswordFormRef = ref(null)
+const resetPasswordForm = ref({
+  newPassword: ''
+})
+let resetPasswordMerchantId = null
 
 const merchantFormRef = ref(null)
 
@@ -137,6 +246,8 @@ const merchantForm = ref({
   name: '',
   type: '',
   username: '',
+  password: '',
+  resourceId: '',
   contactName: '',
   contactPhone: '',
   address: '',
@@ -153,8 +264,10 @@ const fetchMerchantList = async () => {
   loading.value = true
   try {
     const res = await getMerchantList({
-      current: pagination.value.current,
-      size: pagination.value.size
+      page: pagination.value.current,
+      size: pagination.value.size,
+      fuzzy: searchForm.value.fuzzy,
+      type: searchForm.value.type
     })
     merchantList.value = res.data.records
     pagination.value.total = res.data.total
@@ -170,12 +283,28 @@ const handlePageChange = (page) => {
   fetchMerchantList()
 }
 
+const handleSearch = () => {
+  pagination.value.current = 1
+  fetchMerchantList()
+}
+
+const resetSearch = () => {
+  searchForm.value = {
+    fuzzy: '',
+    type: ''
+  }
+  pagination.value.current = 1
+  fetchMerchantList()
+}
+
 
 const resetFormData = () => {
   merchantForm.value = {
     name: '',
     type: '',
     username: '',
+    password: '',
+    resourceId: '',
     contactName: '',
     contactPhone: '',
     address: '',
@@ -193,13 +322,18 @@ const handleAdd = () => {
 const handleEdit = (row) => {
   dialogTitle.value = '编辑商家'
   
-  merchantForm.value = { ...row }
-  
-  if (typeof merchantForm.value.status === 'number') {
-    merchantForm.value.status = merchantForm.value.status.toString()
+  merchantForm.value = {
+    id: row.id,
+    name: row.name,
+    type: row.type,
+    username: row.username,
+    contactName: row.contactName,
+    contactPhone: row.contactPhone,
+    address: row.address,
+    status: row.status.toString()
   }
   
-  editingId.value = row.merchantId
+  editingId.value = row.id
   dialogVisible.value = true
 }
 
@@ -212,26 +346,30 @@ const handleSubmit = async () => {
   if (!merchantFormRef.value) return
 
   try {
-
     const valid = await merchantFormRef.value.validate()
     if (!valid) return
 
-    
     const data = {
       ...merchantForm.value,
       status: parseInt(merchantForm.value.status) 
     }
-    
+
     loading.value = true 
-    
-    
+
     if (editingId.value) {
-      await updateMerchant({ ...data, merchantId: editingId.value })
+      // 只传递允许修改的字段
+      const updateData = {
+        id: editingId.value,
+        name: data.name,
+        contactName: data.contactName,
+        contactPhone: data.contactPhone,
+        status: data.status
+      }
+      await updateMerchant(updateData)
     } else {
       await createMerchant(data)
     }
-    
-    
+
     dialogVisible.value = false
     fetchMerchantList()
     ElMessage.success(editingId.value ? '更新成功' : '创建成功')
@@ -247,24 +385,41 @@ const handleSubmit = async () => {
   }
 }
 
+// 详情功能
 const handleDetail = async (id) => {
   try {
     const res = await getMerchantDetail(id)
-    console.log('商家详情:', res.data)
-    ElMessage.success('获取详情成功')
+    merchantDetail.value = res.data
+    detailDialogVisible.value = true
   } catch (error) {
     ElMessage.error('获取详情失败')
   }
 }
 
+const handleDetailDialogOpen = () => {
+  // 可以在这里添加详情弹窗打开时的逻辑
+}
+
+// 重置密码功能
 const handleResetPassword = async (id) => {
+  resetPasswordMerchantId = id
+  resetPasswordForm.value.newPassword = ''
+  resetPasswordDialogVisible.value = true
+}
+
+const confirmResetPassword = async () => {
+  if (!resetPasswordFormRef.value) return
+
   try {
-    await ElMessageBox.confirm('确定要重置该商家密码吗？', '提示', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
+    const valid = await resetPasswordFormRef.value.validate()
+    if (!valid) return
+
+    await resetMerchantPassword({
+      id: resetPasswordMerchantId,
+      newPassword: resetPasswordForm.value.newPassword
     })
-    await resetMerchantPassword({ merchantId: id, newPassword: '123456' })
+    
+    resetPasswordDialogVisible.value = false
     ElMessage.success('密码重置成功')
   } catch (error) {
     if (error !== 'cancel') {
@@ -273,6 +428,7 @@ const handleResetPassword = async (id) => {
   }
 }
 
+// 启用/禁用商家账号
 const handleToggleStatus = async (id, currentStatus) => {
   try {
     await ElMessageBox.confirm('确定要修改商家状态吗？', '提示', {
@@ -280,7 +436,13 @@ const handleToggleStatus = async (id, currentStatus) => {
       cancelButtonText: '取消',
       type: 'warning'
     })
-    await updateMerchantStatus({ merchantId: id, status: currentStatus === 1 ? 0 : 1 })
+    
+    const newStatus = currentStatus === 1 ? 0 : 1
+    await updateMerchantStatus({
+      id: id,
+      status: newStatus
+    })
+    
     ElMessage.success('状态更新成功')
     fetchMerchantList()
   } catch (error) {
@@ -327,5 +489,50 @@ const handleDelete = async (id) => {
 .pagination-container {
   margin-top: 20px;
   text-align: right;
+}
+
+.search-container {
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #f5f7fa;
+  border-radius: 4px;
+}
+
+.detail-content {
+  padding: 20px;
+}
+
+/* 增加类型下拉框的宽度 */
+.demo-form-inline .el-form-item {
+  margin-bottom: 10px;
+}
+
+.demo-form-inline .el-form-item .el-select {
+  width: 180px;
+}
+
+/* 按钮组样式 */
+.button-group {
+  display: flex;
+  gap: 8px; /* 按钮之间的间距 */
+  flex-wrap: wrap; /* 允许换行 */
+}
+
+.button-group .el-button {
+  flex: 1; /* 每个按钮平均分配空间 */
+  min-width: 80px; /* 最小宽度 */
+  white-space: nowrap; /* 防止文字换行 */
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  .button-group {
+    flex-direction: column; /* 小屏幕下垂直排列 */
+  }
+  
+  .button-group .el-button {
+    width: 100%; /* 小屏幕下占满宽度 */
+    margin-bottom: 8px; /* 垂直间距 */
+  }
 }
 </style>
