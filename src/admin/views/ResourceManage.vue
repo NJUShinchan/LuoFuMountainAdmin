@@ -238,7 +238,13 @@ const openContentEditor = () => {
   if (resourceForm.value.contentJson) {
     try {
       const parsed = JSON.parse(resourceForm.value.contentJson)
-      const list = Array.isArray(parsed.content) ? parsed.content : []
+      let list = []
+
+      if (Array.isArray(parsed)) {
+        list = parsed
+      } else if (parsed && Array.isArray(parsed.content)) {
+        list = parsed.content
+      }
 
       contentForm.value.items = list.map(item => {
         if (item.type === 'image') {
@@ -277,7 +283,7 @@ const confirmContent = () => {
     }
   })
 
-  resourceForm.value.contentJson = JSON.stringify({ content })
+  resourceForm.value.contentJson = JSON.stringify(content)
   contentDialogVisible.value = false
 }
 
@@ -373,7 +379,7 @@ const handleEdit = async (row) => {
       latitude: detail.latitude ?? '',
       longitude: detail.longitude ?? '',
       hotScore: detail.hotScore ?? '',
-      contentJson: detail.contentJson || ''
+      contentJson: detail.content || ''
     }
 
     editingId.value = detail.id
