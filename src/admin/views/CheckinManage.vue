@@ -33,13 +33,13 @@
           v-model:page-size="pagination.size"
           :total="pagination.total"
           @current-change="handlePageChange"
+          @size-change="handleSizeChange"
           background
-          layout="total, prev, pager, next"
+          layout="total, prev, pager, next, jumper"
         />
       </div>
     </el-card>
 
-    
     <el-dialog
       :title="dialogTitle"
       v-model="dialogVisible"
@@ -84,7 +84,7 @@ const loading = ref(false)
 const pagination = ref({
   current: 1,
   size: 10,
-  total: 0
+  total: 0 // 后续从接口返回数据长度赋值
 })
 const dialogVisible = ref(false)
 const dialogTitle = ref('新增打卡点')
@@ -103,18 +103,32 @@ onMounted(() => {
   fetchCheckinList()
 })
 
+// 核心修改：适配实际接口返回格式，直接解析 res.data 为列表数据
 const fetchCheckinList = async () => {
   loading.value = true
   try {
-    const res = await getCheckinLocationList({
+    const queryParams = {
       current: pagination.value.current,
       size: pagination.value.size
-    })
-    checkinList.value = res.data.records
-    pagination.value.total = res.data.total
+    }
+
+    const res = await getCheckinLocationList(queryParams)
+
+    // 关键修改1：适配实际接口返回格式
+    // 实际接口 res.data 直接是打卡点数组，而非 { records: [], total: xxx }
+    if (res && Array.isArray(res.data)) {
+      checkinList.value = res.data // 直接将 res.data 赋值给表格绑定的 checkinList
+      pagination.value.total = res.data.length // 用数组长度作为分页总记录数（适配当前接口返回）
+    } else {
+      checkinList.value = []
+      pagination.value.total = 0
+    }
+
   } catch (error) {
     console.error('获取打卡点列表失败:', error)
-    ElMessage.error('获取打卡点列表失败')
+    ElMessage.error('获取打卡点列表失败，请稍后重试')
+    checkinList.value = []
+    pagination.value.total = 0
   } finally {
     loading.value = false
   }
@@ -125,6 +139,12 @@ const handlePageChange = (page) => {
   fetchCheckinList()
 }
 
+const handleSizeChange = (size) => {
+  pagination.value.size = size
+  pagination.value.current = 1
+  fetchCheckinList()
+}
+
 const handleAdd = () => {
   dialogTitle.value = '新增打卡点'
   checkinForm.value = {
@@ -132,7 +152,8 @@ const handleAdd = () => {
     latitude: '',
     longitude: '',
     score: '',
-    radius: ''
+    radius: '',
+    todayHasCheckin: 0
   }
   editingId.value = null
   dialogVisible.value = true
@@ -140,7 +161,8 @@ const handleAdd = () => {
 
 const handleEdit = (row) => {
   dialogTitle.value = '编辑打卡点'
-  checkinForm.value = { ...row }
+  // 关键修改2：深拷贝行数据，确保表单赋值完整，且不污染原表格数据
+  checkinForm.value = JSON.parse(JSON.stringify(row))
   editingId.value = row.id
   dialogVisible.value = true
 }
@@ -149,14 +171,13 @@ const handleSubmit = async () => {
   if (!checkinFormRef.value) return
   
   try {
-    
     await checkinFormRef.value.validate()
     
     const data = {
       ...checkinForm.value,
-      latitude: parseFloat(checkinForm.value.latitude),
-      longitude: parseFloat(checkinForm.value.longitude),
-      score: parseInt(checkinForm.value.score),
+      latitude: parseFloat(checkinForm.value.latitude) || 0,
+      longitude: parseFloat(checkinForm.value.longitude) || 0,
+      score: parseInt(checkinForm.value.score) || 0,
       radius: checkinForm.value.radius ? parseInt(checkinForm.value.radius) : null
     }
     
