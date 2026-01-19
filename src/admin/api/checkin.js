@@ -21,7 +21,8 @@ export function getCheckinLocationList(params) {
 // 3.3.3 删除打卡点
 export function deleteCheckinLocation(id) {
   return request({
-    url: `/admin/checkin/location/delete/${id}`,
-    method: 'post'
+    url: `/admin/checkin/location/delete`,
+    method: 'post',
+    params: { id }
   })
 }

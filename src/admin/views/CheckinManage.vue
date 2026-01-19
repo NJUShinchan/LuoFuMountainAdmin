@@ -39,14 +39,14 @@
       </div>
     </el-card>
 
-    <!-- 新增/编辑弹窗 -->
+    
     <el-dialog
       :title="dialogTitle"
       v-model="dialogVisible"
       :close-on-click-modal="false"
       width="500px"
     >
-      <el-form ref="checkinForm" :model="checkinForm" label-width="80px">
+      <el-form ref="checkinFormRef" :model="checkinForm" label-width="80px">
         <el-form-item label="名称" prop="name" :rules="[{ required: true, message: '请输入名称', trigger: 'blur' }]">
           <el-input v-model="checkinForm.name" placeholder="请输入打卡点名称" />
         </el-form-item>
@@ -62,6 +62,9 @@
         <el-form-item label="半径范围" prop="radius">
           <el-input v-model="checkinForm.radius" type="number" placeholder="请输入半径范围(米)" />
         </el-form-item>
+        <el-form-item label="今日打卡数" prop="todayHasCheckin">
+          <el-input-number v-model="checkinForm.todayHasCheckin" :min="0" placeholder="请输入今日打卡数" />
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -74,7 +77,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getCheckinLocationList, saveCheckinLocation, deleteCheckinLocation } from '@/admin/api/checkin'
-import { ElMessage, ElForm } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const checkinList = ref([])
 const loading = ref(false)
@@ -90,9 +93,10 @@ const checkinForm = ref({
   latitude: '',
   longitude: '',
   score: '',
-  radius: ''
+  radius: '',
+  todayHasCheckin: 0
 })
-const checkinFormRef = ref(null)
+const checkinFormRef = ref(null) 
 const editingId = ref(null)
 
 onMounted(() => {
@@ -109,6 +113,7 @@ const fetchCheckinList = async () => {
     checkinList.value = res.data.records
     pagination.value.total = res.data.total
   } catch (error) {
+    console.error('获取打卡点列表失败:', error)
     ElMessage.error('获取打卡点列表失败')
   } finally {
     loading.value = false
@@ -142,40 +147,51 @@ const handleEdit = (row) => {
 
 const handleSubmit = async () => {
   if (!checkinFormRef.value) return
-  await checkinFormRef.value.validate((valid) => {
-    if (valid) {
-      const data = {
-        ...checkinForm.value,
-        latitude: parseFloat(checkinForm.value.latitude),
-        longitude: parseFloat(checkinForm.value.longitude),
-        score: parseInt(checkinForm.value.score),
-        radius: checkinForm.value.radius ? parseInt(checkinForm.value.radius) : null
-      }
-      
-      if (editingId.value) {
-        // 编辑逻辑
-        saveCheckinLocation({ ...data, id: editingId.value })
-      } else {
-        // 新增逻辑
-        saveCheckinLocation(data)
-      }
-      
-      dialogVisible.value = false
-      fetchCheckinList()
-      ElMessage.success(editingId.value ? '更新成功' : '新增成功')
+  
+  try {
+    
+    await checkinFormRef.value.validate()
+    
+    const data = {
+      ...checkinForm.value,
+      latitude: parseFloat(checkinForm.value.latitude),
+      longitude: parseFloat(checkinForm.value.longitude),
+      score: parseInt(checkinForm.value.score),
+      radius: checkinForm.value.radius ? parseInt(checkinForm.value.radius) : null
     }
-  })
+    
+    if (editingId.value) {
+      await saveCheckinLocation({ ...data, id: editingId.value })
+    } else {
+      await saveCheckinLocation(data)
+    }
+    
+    dialogVisible.value = false
+    fetchCheckinList()
+    ElMessage.success(editingId.value ? '更新成功' : '新增成功')
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('提交失败:', error)
+      ElMessage.error(error.message || '操作失败，请稍后重试')
+    }
+  }
 }
 
 const handleDelete = async (id) => {
   try {
-    await ElMessage.confirm('确定要删除该打卡点吗？')
+    await ElMessageBox.confirm('确定要删除该打卡点吗？此操作不可恢复。', '警告', {
+      confirmButtonText: '确定删除',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
     await deleteCheckinLocation(id)
     ElMessage.success('删除成功')
     fetchCheckinList()
   } catch (error) {
     if (error !== 'cancel') {
-      ElMessage.error('删除失败')
+      console.error('删除失败:', error)
+      ElMessage.error('删除失败，请稍后重试')
     }
   }
 }

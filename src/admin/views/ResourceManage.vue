@@ -1,4 +1,4 @@
-<!-- src/admin/views/ResourceManage.vue -->
+
 <template>
   <div class="resource-manage">
     <el-button type="primary" @click="handleAdd">新增资源</el-button>
@@ -24,13 +24,13 @@
       style="margin-top: 20px"
     />
 
-    <!-- 新增/编辑弹窗 -->
+    
     <el-dialog
       :title="dialogTitle"
       v-model="dialogVisible"
       :close-on-click-modal="false"
     >
-      <el-form ref="resourceForm" :model="resourceForm" label-width="80px">
+      <el-form ref="resourceFormRef" :model="resourceForm" label-width="80px">
         <el-form-item label="名称" prop="name" :rules="[{ required: true, message: '请输入名称', trigger: 'blur' }]">
           <el-input v-model="resourceForm.name" />
         </el-form-item>
@@ -69,7 +69,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getResourceList, saveResource, deleteResource } from '@/admin/api/resource'
-import { ElMessage, ElForm } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 
 const resourceList = ref([])
 const pagination = ref({
@@ -96,12 +96,19 @@ onMounted(() => {
 })
 
 const fetchResourceList = async () => {
-  const res = await getResourceList({
-    current: pagination.value.current,
-    size: pagination.value.size
-  })
-  resourceList.value = res.data.records
-  pagination.value.total = res.data.total
+  try {
+    console.log('获取资源列表，页码:', pagination.value.current) 
+    const res = await getResourceList({
+      current: pagination.value.current,
+      size: pagination.value.size
+    })
+    resourceList.value = res.data.records
+    pagination.value.total = res.data.total
+    console.log('获取到的资源数据:', res.data.records) 
+  } catch (error) {
+    console.error('获取资源列表失败:', error) 
+    ElMessage.error('获取资源列表失败')
+  }
 }
 
 const handlePageChange = (page) => {
@@ -133,33 +140,52 @@ const handleEdit = (row) => {
 
 const handleSubmit = async () => {
   if (!resourceFormRef.value) return
-  await resourceFormRef.value.validate((valid) => {
-    if (valid) {
-      const data = {
-        ...resourceForm.value,
-        latitude: parseFloat(resourceForm.value.latitude),
-        longitude: parseFloat(resourceForm.value.longitude),
-        hotScore: parseInt(resourceForm.value.hotScore)
-      }
-      if (editingId.value) {
-        saveResource({ ...data, id: editingId.value })
-      } else {
-        saveResource(data)
-      }
-      dialogVisible.value = false
-      fetchResourceList()
-      ElMessage.success(editingId.value ? '更新成功' : '新增成功')
+  
+  try {
+    await resourceFormRef.value.validate()
+    
+    const data = {
+      ...resourceForm.value,
+      latitude: parseFloat(resourceForm.value.latitude),
+      longitude: parseFloat(resourceForm.value.longitude),
+      hotScore: parseInt(resourceForm.value.hotScore)
     }
-  })
+    
+    if (editingId.value) {
+      await saveResource({ ...data, id: editingId.value })
+    } else {
+      await saveResource(data)
+    }
+    
+    dialogVisible.value = false
+    fetchResourceList()
+    ElMessage.success(editingId.value ? '更新成功' : '新增成功')
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error(error.message || '操作失败，请稍后重试')
+    }
+  }
 }
 
 const handleDelete = async (id) => {
   try {
+    console.log('准备删除ID:', id) 
+    await ElMessageBox.confirm('确定要删除该资源吗？此操作不可恢复。', '警告', {
+      confirmButtonText: '确定删除',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    console.log('确认删除，调用deleteResource函数') 
     await deleteResource(id)
+    console.log('删除成功')
     ElMessage.success('删除成功')
     fetchResourceList()
   } catch (error) {
-    ElMessage.error('删除失败')
+    if (error !== 'cancel') {
+      console.error('删除失败:', error) 
+      ElMessage.error('删除失败，请稍后重试')
+    }
   }
 }
 </script>
