@@ -62,9 +62,6 @@
         <el-form-item label="半径范围" prop="radius">
           <el-input v-model="checkinForm.radius" type="number" placeholder="请输入半径范围(米)" />
         </el-form-item>
-        <el-form-item label="今日打卡数" prop="todayHasCheckin">
-          <el-input-number v-model="checkinForm.todayHasCheckin" :min="0" placeholder="请输入今日打卡数" />
-        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -93,8 +90,7 @@ const checkinForm = ref({
   latitude: '',
   longitude: '',
   score: '',
-  radius: '',
-  todayHasCheckin: 0
+  radius: ''
 })
 const checkinFormRef = ref(null) 
 const editingId = ref(null)
@@ -152,8 +148,7 @@ const handleAdd = () => {
     latitude: '',
     longitude: '',
     score: '',
-    radius: '',
-    todayHasCheckin: 0
+    radius: ''
   }
   editingId.value = null
   dialogVisible.value = true
@@ -172,13 +167,15 @@ const handleSubmit = async () => {
   
   try {
     await checkinFormRef.value.validate()
+
+    const { todayHasCheckin, ...formData } = checkinForm.value
     
     const data = {
-      ...checkinForm.value,
-      latitude: parseFloat(checkinForm.value.latitude) || 0,
-      longitude: parseFloat(checkinForm.value.longitude) || 0,
-      score: parseInt(checkinForm.value.score) || 0,
-      radius: checkinForm.value.radius ? parseInt(checkinForm.value.radius) : null
+      ...formData,
+      latitude: parseFloat(formData.latitude) || 0,
+      longitude: parseFloat(formData.longitude) || 0,
+      score: parseInt(formData.score) || 0,
+      radius: formData.radius ? parseInt(formData.radius) : null
     }
     
     if (editingId.value) {
