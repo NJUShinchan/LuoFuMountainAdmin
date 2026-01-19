@@ -40,6 +40,8 @@
             </el-breadcrumb>
           </div>
           <div class="header-actions">
+            
+            <el-button @click="openChangePasswordDialog">修改密码</el-button>
             <el-button @click="handleLogout">退出登录</el-button>
           </div>
         </div>
@@ -49,12 +51,33 @@
       </el-main>
     </el-container>
   </el-container>
+
+
+  <el-dialog v-model="dialogVisible" title="修改密码" width="400px" @close="resetForm">
+    <el-form :model="passwordForm" ref="passwordFormRef" :rules="formRules" label-width="100px">
+      <el-form-item label="原密码" prop="oldPassword">
+        <el-input v-model="passwordForm.oldPassword" type="password" placeholder="请输入原密码" />
+      </el-form-item>
+      <el-form-item label="新密码" prop="newPassword">
+        <el-input v-model="passwordForm.newPassword" type="password" placeholder="请输入新密码" />
+      </el-form-item>
+      <el-form-item label="确认新密码" prop="confirmPassword">
+        <el-input v-model="passwordForm.confirmPassword" type="password" placeholder="请再次输入新密码" />
+      </el-form-item>
+    </el-form>
+    <template #footer>
+      <span class="dialog-footer">
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleChangePassword">确定</el-button>
+      </span>
+    </template>
+  </el-dialog>
 </template>
 
 <script setup>
 import { ref, onMounted, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUserStore } from '@/admin/stores/user'
 import { 
   Menu as IconMenu, 
@@ -62,12 +85,45 @@ import {
   Shop 
 } from '@element-plus/icons-vue'
 
+import request from '@/utils/request'
+
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const activeMenu = ref('/admin/resource')
 const currentMenu = ref('资源管理')
 const isCollapse = ref(false)
+
+// 修改密码相关状态
+const dialogVisible = ref(false)
+const passwordFormRef = ref(null)
+const passwordForm = reactive({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
+})
+const formRules = {
+  oldPassword: [
+    { required: true, message: '请输入原密码', trigger: 'blur' }
+  ],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请再次输入新密码', trigger: 'blur' },
+    { 
+      validator: (rule, value, callback) => {
+        if (value !== passwordForm.newPassword) {
+          callback(new Error('两次输入的密码不一致'))
+        } else {
+          callback()
+        }
+      }, 
+      trigger: 'blur' 
+    }
+  ]
+}
 
 const handleSelect = (index) => {
   router.push(index)
@@ -84,7 +140,63 @@ const getMenuName = (path) => {
 }
 
 const handleLogout = () => {
-  userStore.logout()
+  ElMessageBox.confirm(
+    '确定要退出登录吗？',
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    }
+  ).then(() => {
+    userStore.logout()
+  }).catch(() => {
+    ElMessage({
+      type: 'info',
+      message: '已取消退出'
+    })
+  })
+}
+
+// 新增：打开修改密码弹窗
+const openChangePasswordDialog = () => {
+  dialogVisible.value = true
+}
+
+// 新增：重置表单
+const resetForm = () => {
+  passwordFormRef.value.resetFields()
+  passwordForm.oldPassword = ''
+  passwordForm.newPassword = ''
+  passwordForm.confirmPassword = ''
+}
+
+// 新增：提交修改密码
+const handleChangePassword = () => {
+  passwordFormRef.value.validate((valid) => {
+    if (valid) {
+      // 调用修改密码接口
+      request({
+        url: '/admin/password/update',
+        method: 'post',
+        data: {
+          oldPassword: passwordForm.oldPassword,
+          newPassword: passwordForm.newPassword
+        }
+      }).then(res => {
+        if (res.code === 200) {
+          ElMessage.success('密码修改成功，请重新登录')
+          dialogVisible.value = false
+          // 密码修改成功后退出登录
+          userStore.logout()
+        } else {
+          ElMessage.error(res.msg || '密码修改失败')
+        }
+      }).catch(err => {
+        ElMessage.error('网络错误，请稍后重试')
+      })
+    }
+  })
 }
 
 const toggleSidebar = () => {
