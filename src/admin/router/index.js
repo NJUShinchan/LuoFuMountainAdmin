@@ -14,11 +14,18 @@ const routes = [
   {
     path: '/admin/login',
     name: 'AdminLogin',
-    component: Login
+    component: Login,
+    meta: { 
+      requiresAuth: false, 
+      hiddenLayout: true 
+    }
   },
   {
     path: '/admin',
     component: MainLayout,
+    meta: { 
+      requiresAuth: true 
+    },
     children: [
       {
         path: 'resource',
@@ -43,7 +50,8 @@ const routes = [
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
-    component: NotFound
+    component: NotFound,
+    meta: { requiresAuth: false }
   }
 ]
 
@@ -52,12 +60,20 @@ const router = createRouter({
   routes
 })
 
-// 路由守卫：检查是否已登录
 router.beforeEach((to, from, next) => {
+  
   const token = localStorage.getItem('Admin-Token')
-  if (to.meta.requiresAuth && !token) {
+  
+  const requiresAuth = to.meta.requiresAuth
+
+  
+  if (requiresAuth && !token) {
     next('/admin/login')
+  } else if (!requiresAuth && token && to.path === '/admin/login') {
+    
+    next('/admin/resource')
   } else {
+    
     next()
   }
 })
