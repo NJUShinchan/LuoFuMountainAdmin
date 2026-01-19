@@ -12,8 +12,9 @@ export function saveResource(data) {
 // 3.2.2 删除资源
 export function deleteResource(id) {
   return request({
-    url: `/admin/resource/delete/${id}`,
-    method: 'post'
+    url: '/admin/resource/delete',
+    method: 'post',
+    params: { id }  
   })
 }
 

@@ -60,6 +60,6 @@ export function deleteMerchant(id) {
   return request({
     url: '/admin/merchant/delete',
     method: 'post',
-    data: { id }
+    params: { id }   
   })
 }
