@@ -1,4 +1,3 @@
-
 <template>
   <div class="resource-manage">
     <el-button type="primary" @click="handleAdd">新增资源</el-button>
@@ -207,7 +206,7 @@
 import { ref, onMounted } from 'vue'
 import { getResourceList, saveResource, deleteResource, getResourceDetail } from '@/admin/api/resource'
 import { uploadFile } from '@/admin/api/upload'
-import { ElMessage, ElForm } from 'element-plus'
+import { ElMessage, ElForm, ElMessageBox } from 'element-plus'  
 import { Plus } from '@element-plus/icons-vue'
 
 const resourceList = ref([])
