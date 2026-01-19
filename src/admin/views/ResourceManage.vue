@@ -98,25 +98,14 @@
       v-model="contentDialogVisible"
       width="700px"
     >
-      <el-form :model="contentForm" label-width="100px">
-        <el-form-item label="标题">
-          <el-input v-model="contentForm.title" />
-        </el-form-item>
-        <el-form-item label="副标题">
-          <el-input v-model="contentForm.subtitle" />
-        </el-form-item>
-        <el-form-item label="简介">
-          <el-input v-model="contentForm.description" type="textarea" :rows="3" />
-        </el-form-item>
-
-        <!-- 核心：内容块编辑 -->
+      <el-form :model="contentForm" label-width="80px">
         <el-form-item label="内容块">
           <div
             v-for="(item, index) in contentForm.items"
             :key="index"
             class="content-item"
           >
-            <!-- 类型选择 -->
+            <!-- 类型选择-->
             <el-select
               v-model="item.type"
               placeholder="类型"
@@ -124,14 +113,13 @@
             >
               <el-option label="文本" value="text" />
               <el-option label="图片" value="image" />
-              <el-option label="小贴士" value="tip" />
             </el-select>
 
-            <!-- 文本 / 小贴士 -->
-            <template v-if="item.type === 'text' || item.type === 'tip'">
+            <!-- 文本 -->
+            <template v-if="item.type === 'text'">
               <el-input
                 v-model="item.value"
-                :placeholder="item.type === 'tip' ? '请输入小贴士内容' : '请输入文本内容'"
+                placeholder="请输入文本内容"
                 type="textarea"
                 :rows="2"
                 style="flex: 1;"
@@ -185,18 +173,24 @@
               >删除</el-button>
             </div>
           </div>
-
-          <div style="margin-top: 8px;">
-            <el-button type="primary" link @click="addItem('text')">新增文本块</el-button>
-            <el-button type="primary" link @click="addItem('image')">新增图片块</el-button>
-            <el-button type="primary" link @click="addItem('tip')">新增小贴士</el-button>
-          </div>
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button @click="contentDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="confirmContent">确定</el-button>
+        <div class="content-dialog-footer">
+          <div class="content-dialog-footer-left">
+            <el-button type="primary" link @click="addItem('text')">
+              新增文本块
+            </el-button>
+            <el-button type="primary" link @click="addItem('image')">
+              新增图片块
+            </el-button>
+          </div>
+          <div class="content-dialog-footer-right">
+            <el-button @click="contentDialogVisible = false">取消</el-button>
+            <el-button type="primary" @click="confirmContent">确定</el-button>
+          </div>
+        </div>
       </template>
     </el-dialog>
   </div>
@@ -232,16 +226,10 @@ const editingId = ref(null)
 //内容编辑相关
 const contentDialogVisible = ref(false)
 const contentForm = ref({
-  title: '',
-  subtitle: '',
-  description: '',
   items: []
 })
 
 const emptyContentForm = () => ({
-  title: '',
-  subtitle: '',
-  description: '',
   items: []
 })
 
@@ -250,28 +238,21 @@ const openContentEditor = () => {
   if (resourceForm.value.contentJson) {
     try {
       const parsed = JSON.parse(resourceForm.value.contentJson)
-      contentForm.value = {
-        title: parsed.title || '',
-        subtitle: parsed.subtitle || '',
-        description: parsed.description || '',
-        items: Array.isArray(parsed.items) ? parsed.items : []
-      }
+      const list = Array.isArray(parsed.content) ? parsed.content : []
 
-      // 兼容旧数据：images / tips 转成 items
-      if (!contentForm.value.items.length) {
-        const items = []
-        if (Array.isArray(parsed.images)) {
-          parsed.images.forEach(url => {
-            items.push({ type: 'image', url })
-          })
+      contentForm.value.items = list.map(item => {
+        if (item.type === 'image') {
+          return {
+            type: 'image',
+            url: item.value || ''
+          }
         }
-        if (Array.isArray(parsed.tips)) {
-          parsed.tips.forEach(value => {
-            items.push({ type: 'tip', value })
-          })
+        
+        return {
+          type: item.type || 'text',
+          value: item.value || ''
         }
-        contentForm.value.items = items
-      }
+      })
     } catch (e) {
       contentForm.value = emptyContentForm()
     }
@@ -283,7 +264,20 @@ const openContentEditor = () => {
 
 // 确认内容，写回 JSON 字符串
 const confirmContent = () => {
-  resourceForm.value.contentJson = JSON.stringify(contentForm.value)
+  const content = contentForm.value.items.map(item => {
+    if (item.type === 'image') {
+      return {
+        type: 'image',
+        value: item.url || ''
+      }
+    }
+    return {
+      type: item.type || 'text',
+      value: item.value || ''
+    }
+  })
+
+  resourceForm.value.contentJson = JSON.stringify({ content })
   contentDialogVisible.value = false
 }
 
@@ -526,5 +520,15 @@ const handleDelete = async (id) => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.content-dialog-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.content-dialog-footer-left .el-button {
+  margin-right: 8px;
 }
 </style>
