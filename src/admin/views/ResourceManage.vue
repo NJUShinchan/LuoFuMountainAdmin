@@ -30,7 +30,7 @@
       v-model="dialogVisible"
       :close-on-click-modal="false"
     >
-      <el-form ref="resourceForm" :model="resourceForm" label-width="80px">
+      <el-form ref="resourceFormRef" :model="resourceForm" label-width="80px">
         <el-form-item label="名称" prop="name" :rules="[{ required: true, message: '请输入名称', trigger: 'blur' }]">
           <el-input v-model="resourceForm.name" />
         </el-form-item>
@@ -43,7 +43,27 @@
           </el-select>
         </el-form-item>
         <el-form-item label="封面图">
-          <el-input v-model="resourceForm.coverImg" />
+          <el-upload
+            class="cover-uploader"
+            :show-file-list="false"
+            :http-request="handleCoverUpload"
+            accept="image/*"
+          >
+            <img
+              v-if="resourceForm.coverImg"
+              :src="resourceForm.coverImg"
+              class="cover-img"
+            />
+            <el-icon v-else class="cover-uploader-icon">
+              <Plus />
+            </el-icon>
+          </el-upload>
+          <!-- 也允许直接粘贴 URL -->
+          <el-input
+            v-model="resourceForm.coverImg"
+            placeholder="或直接粘贴图片 URL"
+            style="margin-top: 10px"
+          />
         </el-form-item>
         <el-form-item label="纬度" prop="latitude" :rules="[{ required: true, message: '请输入纬度', trigger: 'blur' }]">
           <el-input v-model="resourceForm.latitude" type="number" />
@@ -69,7 +89,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { getResourceList, saveResource, deleteResource } from '@/admin/api/resource'
+import { uploadFile } from '@/admin/api/upload'
 import { ElMessage, ElForm } from 'element-plus'
+import { Plus } from '@element-plus/icons-vue'
 
 const resourceList = ref([])
 const pagination = ref({
@@ -131,26 +153,55 @@ const handleEdit = (row) => {
   dialogVisible.value = true
 }
 
+// 封面图上传
+const handleCoverUpload = async (option) => {
+  const { file, onSuccess, onError } = option
+  try {
+    const res = await uploadFile(file, 'image')
+    resourceForm.value.coverImg = res.data.url
+    ElMessage.success('封面图上传成功')
+    onSuccess && onSuccess(res)
+  } catch (e) {
+    ElMessage.error('封面图上传失败')
+    onError && onError(e)
+  }
+}
+
 const handleSubmit = async () => {
   if (!resourceFormRef.value) return
-  await resourceFormRef.value.validate((valid) => {
-    if (valid) {
-      const data = {
-        ...resourceForm.value,
-        latitude: parseFloat(resourceForm.value.latitude),
-        longitude: parseFloat(resourceForm.value.longitude),
-        hotScore: parseInt(resourceForm.value.hotScore)
-      }
-      if (editingId.value) {
-        saveResource({ ...data, id: editingId.value })
-      } else {
-        saveResource(data)
-      }
-      dialogVisible.value = false
-      fetchResourceList()
-      ElMessage.success(editingId.value ? '更新成功' : '新增成功')
+
+  const valid = await resourceFormRef.value.validate()
+  if (!valid) return
+
+  const form = resourceForm.value
+
+  let contentJson = null
+  if (form.contentJson && form.contentJson.trim() !== '') {
+    try {
+      JSON.parse(form.contentJson)
+      contentJson = form.contentJson
+    } catch (e) {
+      ElMessage.error('内容JSON不是合法的 JSON 格式')
+      return
     }
-  })
+  }
+
+  const data = {
+    id: editingId.value || null,
+    type: form.type,
+    name: form.name,
+    coverImg: form.coverImg || null,
+    latitude: form.latitude !== '' ? parseFloat(form.latitude) : null,
+    longitude: form.longitude !== '' ? parseFloat(form.longitude) : null,
+    hotScore: form.hotScore !== '' ? parseInt(form.hotScore) : null,
+    contentJson: contentJson
+  }
+
+  await saveResource(data)
+
+  dialogVisible.value = false
+  fetchResourceList()
+  ElMessage.success(editingId.value ? '更新成功' : '新增成功')
 }
 
 const handleDelete = async (id) => {
@@ -167,5 +218,28 @@ const handleDelete = async (id) => {
 <style scoped>
 .resource-manage {
   padding: 20px;
+}
+
+.cover-uploader {
+  width: 120px;
+  height: 120px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;              
+  align-items: center;        
+  justify-content: center;    
+}
+
+.cover-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-uploader-icon {
+  font-size: 28px;
+  color: #8c939d;
 }
 </style>

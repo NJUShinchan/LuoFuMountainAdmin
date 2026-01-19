@@ -12,7 +12,9 @@ const service = axios.create({
 service.interceptors.request.use(
   config => {
     const userStore = useUserStore()
-    if (userStore.token) {
+    // skipAuth 开关：为 true 时不自动加 Authorization 头
+    if (userStore.token && !config.skipAuth) {
+      config.headers = config.headers || {}
       config.headers['Authorization'] = `Bearer ${userStore.token}`
     }
     return config

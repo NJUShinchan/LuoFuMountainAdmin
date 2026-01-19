@@ -3,14 +3,22 @@ import request from '@/utils/request';
 
 /**
  * 上传文件
- * @param {FormData} formData - 包含文件的FormData对象
- * @returns {Promise<{url: string}>}
+ * @param {File} file - 要上传的文件
+ * @param {string} [bizType] - 业务类型标识（image / video / file ...）
+ * @returns {Promise<{data: {url: string, fileType: string, size: number}}>}
  */
-export function uploadFile(formData) {
-    return request({
-        url: '/uploadFile', // 文档中提供的路径
-        method: 'post',
-        data: formData,
-        headers: { 'Content-Type': 'multipart/form-data' }
-    });
+export function uploadFile(file, bizType) {
+  const formData = new FormData()
+  formData.append('file', file)
+  if (bizType) {
+    formData.append('bizType', bizType)
+  }
+
+  return request({
+    url: '/common/upload',
+    method: 'post',
+    data: formData,
+    headers: { 'Content-Type': 'multipart/form-data' },
+    skipAuth: true        // 这个请求不带 Authorization
+  })
 }
