@@ -233,38 +233,57 @@ const emptyContentForm = () => ({
   items: []
 })
 
-// 打开内容编辑弹窗
-const openContentEditor = () => {
-  if (resourceForm.value.contentJson) {
-    try {
-      const parsed = JSON.parse(resourceForm.value.contentJson)
-      let list = []
+const parseContentJsonToItems = (raw) => {
+  if (!raw) {
+    contentForm.value = emptyContentForm()
+    return
+  }
+  try {
+    let parsed = raw
 
-      if (Array.isArray(parsed)) {
-        list = parsed
-      } else if (parsed && Array.isArray(parsed.content)) {
-        list = parsed.content
-      }
-
-      contentForm.value.items = list.map(item => {
-        if (item.type === 'image') {
-          return {
-            type: 'image',
-            url: item.value || ''
-          }
-        }
-        
-        return {
-          type: item.type || 'text',
-          value: item.value || ''
-        }
-      })
-    } catch (e) {
-      contentForm.value = emptyContentForm()
+    if (typeof parsed === 'string') {
+      parsed = JSON.parse(parsed)
     }
-  } else {
+
+    let list = []
+
+    if (Array.isArray(parsed)) {
+      list = parsed
+    } else if (parsed && Array.isArray(parsed.content)) {
+      list = parsed.content
+    }
+
+    contentForm.value.items = list.map(item => {
+      if (item.type === 'image') {
+        return {
+          type: 'image',
+          url: item.value || item.url || ''
+        }
+      }
+      return {
+        type: item.type || 'text',
+        value: item.value || ''
+      }
+    })
+  } catch (e) {
+    console.error('解析内容失败:', e, raw)
     contentForm.value = emptyContentForm()
   }
+}
+
+const openContentEditor = async () => {
+  if (editingId.value) {
+    try {
+      const res = await getResourceDetail(editingId.value)
+      const detail = res.data
+      resourceForm.value.contentJson = detail.content || detail.contentJson || ''
+    } catch (e) {
+      console.error('打开内容编辑器时获取详情失败:', e)
+      ElMessage.error('获取资源详情失败')
+    }
+  }
+
+  parseContentJsonToItems(resourceForm.value.contentJson)
   contentDialogVisible.value = true
 }
 
@@ -379,10 +398,15 @@ const handleEdit = async (row) => {
       latitude: detail.latitude ?? '',
       longitude: detail.longitude ?? '',
       hotScore: detail.hotScore ?? '',
+      // 后端返回的是 data.content（字符串）
       contentJson: detail.content || ''
     }
 
     editingId.value = detail.id
+
+    // ✅ 同时把已有内容解析到内容编辑弹窗里
+    parseContentJsonToItems(resourceForm.value.contentJson)
+
     dialogVisible.value = true
   } catch (e) {
     ElMessage.error('获取资源详情失败')
