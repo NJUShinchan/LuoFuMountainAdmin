@@ -1,14 +1,12 @@
-// src/utils/request.js
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
-import { useUserStore } from '@/admin/stores/user'
+
 
 const service = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL,
   timeout: 10000
 })
 
-// 请求拦截器
 service.interceptors.request.use(
   config => {
     const userStore = useUserStore()
@@ -24,7 +22,6 @@ service.interceptors.request.use(
   }
 )
 
-// 响应拦截器
 service.interceptors.response.use(
   response => {
     const res = response.data
@@ -38,8 +35,9 @@ service.interceptors.response.use(
     if (error.response) {
       const status = error.response.status
       if (status === 401) {
-        const userStore = useUserStore()
-        userStore.logout()
+        
+        localStorage.removeItem('Admin-Token')
+        
         window.location.href = '/admin/login'
       } else if (status === 403) {
         ElMessage.error('没有权限访问此功能')
@@ -57,7 +55,6 @@ service.interceptors.response.use(
   }
 )
 
-// Token管理函数（从auth.js合并）
 export function getToken() {
   return localStorage.getItem('Admin-Token')
 }

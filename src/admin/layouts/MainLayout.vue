@@ -18,15 +18,15 @@
       >
         <el-menu-item index="/admin/resource">
           <el-icon><icon-menu /></el-icon>
-          <span slot="title">资源管理</span>
+          <span>资源管理</span>
         </el-menu-item>
         <el-menu-item index="/admin/checkin">
           <el-icon><location /></el-icon>
-          <span slot="title">打卡点管理</span>
+          <span>打卡点管理</span>
         </el-menu-item>
         <el-menu-item index="/admin/merchant">
           <el-icon><shop /></el-icon>
-          <span slot="title">商家管理</span>
+          <span>商家管理</span>
         </el-menu-item>
       </el-menu>
     </el-aside>
@@ -40,7 +40,6 @@
             </el-breadcrumb>
           </div>
           <div class="header-actions">
-            
             <el-button @click="openChangePasswordDialog">修改密码</el-button>
             <el-button @click="handleLogout">退出登录</el-button>
           </div>
@@ -52,17 +51,16 @@
     </el-container>
   </el-container>
 
-
   <el-dialog v-model="dialogVisible" title="修改密码" width="400px" @close="resetForm">
     <el-form :model="passwordForm" ref="passwordFormRef" :rules="formRules" label-width="100px">
       <el-form-item label="原密码" prop="oldPassword">
-        <el-input v-model="passwordForm.oldPassword" type="password" placeholder="请输入原密码" />
+        <el-input v-model="passwordForm.oldPassword" type="password" placeholder="请输入原密码" show-password />
       </el-form-item>
       <el-form-item label="新密码" prop="newPassword">
-        <el-input v-model="passwordForm.newPassword" type="password" placeholder="请输入新密码" />
+        <el-input v-model="passwordForm.newPassword" type="password" placeholder="请输入新密码" show-password />
       </el-form-item>
       <el-form-item label="确认新密码" prop="confirmPassword">
-        <el-input v-model="passwordForm.confirmPassword" type="password" placeholder="请再次输入新密码" />
+        <el-input v-model="passwordForm.confirmPassword" type="password" placeholder="请再次输入新密码" show-password />
       </el-form-item>
     </el-form>
     <template #footer>
@@ -77,14 +75,13 @@
 <script setup>
 import { ref, onMounted, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/admin/stores/user'
 import { 
   Menu as IconMenu, 
   Location, 
   Shop 
 } from '@element-plus/icons-vue'
-
 import request from '@/utils/request'
 
 const router = useRouter()
@@ -94,7 +91,7 @@ const activeMenu = ref('/admin/resource')
 const currentMenu = ref('资源管理')
 const isCollapse = ref(false)
 
-// 修改密码相关状态
+// 其他变量（dialogVisible、passwordForm 等）保留不变...
 const dialogVisible = ref(false)
 const passwordFormRef = ref(null)
 const passwordForm = reactive({
@@ -125,6 +122,7 @@ const formRules = {
   ]
 }
 
+// 其他方法（handleSelect、getMenuName 等）保留不变...
 const handleSelect = (index) => {
   router.push(index)
   currentMenu.value = getMenuName(index)
@@ -140,42 +138,25 @@ const getMenuName = (path) => {
 }
 
 const handleLogout = () => {
-  ElMessageBox.confirm(
-    '确定要退出登录吗？',
-    '提示',
-    {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'warning'
-    }
-  ).then(() => {
-    userStore.logout()
-  }).catch(() => {
-    ElMessage({
-      type: 'info',
-      message: '已取消退出'
-    })
-  })
+  userStore.logout()
 }
 
-// 新增：打开修改密码弹窗
 const openChangePasswordDialog = () => {
   dialogVisible.value = true
 }
 
-// 新增：重置表单
 const resetForm = () => {
-  passwordFormRef.value.resetFields()
+  if (passwordFormRef.value) { 
+    passwordFormRef.value.resetFields()
+  }
   passwordForm.oldPassword = ''
   passwordForm.newPassword = ''
   passwordForm.confirmPassword = ''
 }
 
-// 新增：提交修改密码
 const handleChangePassword = () => {
   passwordFormRef.value.validate((valid) => {
     if (valid) {
-      // 调用修改密码接口
       request({
         url: '/admin/password/update',
         method: 'post',
@@ -183,17 +164,13 @@ const handleChangePassword = () => {
           oldPassword: passwordForm.oldPassword,
           newPassword: passwordForm.newPassword
         }
-      }).then(res => {
-        if (res.code === 200) {
-          ElMessage.success('密码修改成功，请重新登录')
-          dialogVisible.value = false
-          // 密码修改成功后退出登录
-          userStore.logout()
-        } else {
-          ElMessage.error(res.msg || '密码修改失败')
-        }
-      }).catch(err => {
-        ElMessage.error('网络错误，请稍后重试')
+      }).then(() => {
+        ElMessage.success('密码修改成功，请重新登录')
+        dialogVisible.value = false
+        resetForm()
+        userStore.logout()
+      }).catch((err) => {
+        console.error('密码修改失败:', err)
       })
     }
   })
@@ -204,6 +181,9 @@ const toggleSidebar = () => {
 }
 
 onMounted(() => {
+  
+  userStore.checkLoginStatus()
+  
   activeMenu.value = route.path
   currentMenu.value = getMenuName(route.path)
 })
@@ -311,7 +291,6 @@ onMounted(() => {
   transition: all 0.3s ease;
 }
 
-/* 添加平滑过渡效果 */
 .el-aside {
   transition: width 0.3s ease;
 }
@@ -324,7 +303,6 @@ onMounted(() => {
   transition: all 0.3s ease;
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .sidebar {
     width: 64px !important;
