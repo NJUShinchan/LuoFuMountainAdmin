@@ -7,13 +7,14 @@
           <p>管理员登录</p>
         </div>
       </template>
-      <el-form ref="loginFormRef" :model="loginForm">
+      <el-form ref="loginFormRef" :model="loginForm" @submit.native.prevent> <!-- 添加阻止默认提交 -->
         <el-form-item label="管理密码">
           <el-input
             v-model="loginForm.password"
             type="password"
             placeholder="请输入管理密码"
             show-password
+            @keyup.enter="handleLogin" 
           />
         </el-form-item>
         <el-form-item>
