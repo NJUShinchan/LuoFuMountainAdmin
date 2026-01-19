@@ -14,8 +14,9 @@
           <el-form-item label="名称/账号">
             <el-input 
               v-model="searchForm.fuzzy" 
-              placeholder="请输入商家名称或账号" 
+              placeholder="请输入商家部分名称" 
               clearable
+              @keyup.enter="handleSearch"
             />
           </el-form-item>
           <el-form-item label="类型">
@@ -263,6 +264,7 @@ onMounted(() => {
 const fetchMerchantList = async () => {
   loading.value = true
   try {
+    console.log('搜索参数:', searchForm.value) // 调试信息
     const res = await getMerchantList({
       page: pagination.value.current,
       size: pagination.value.size,
@@ -271,7 +273,9 @@ const fetchMerchantList = async () => {
     })
     merchantList.value = res.data.records
     pagination.value.total = res.data.total
+    console.log('获取到的数据:', res.data.records) // 调试信息
   } catch (error) {
+    console.error('获取商家列表失败:', error) // 调试信息
     ElMessage.error('获取商家列表失败')
   } finally {
     loading.value = false
@@ -284,6 +288,7 @@ const handlePageChange = (page) => {
 }
 
 const handleSearch = () => {
+  console.log('执行搜索:', searchForm.value) // 调试信息
   pagination.value.current = 1
   fetchMerchantList()
 }

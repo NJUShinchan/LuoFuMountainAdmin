@@ -1,4 +1,4 @@
-<!-- src/admin/views/ResourceManage.vue -->
+
 <template>
   <div class="resource-manage">
     <el-button type="primary" @click="handleAdd">新增资源</el-button>
@@ -24,7 +24,7 @@
       style="margin-top: 20px"
     />
 
-    <!-- 新增/编辑弹窗 -->
+    
     <el-dialog
       :title="dialogTitle"
       v-model="dialogVisible"
@@ -332,12 +332,19 @@ onMounted(() => {
 })
 
 const fetchResourceList = async () => {
-  const res = await getResourceList({
-    current: pagination.value.current,
-    size: pagination.value.size
-  })
-  resourceList.value = res.data.records
-  pagination.value.total = res.data.total
+  try {
+    console.log('获取资源列表，页码:', pagination.value.current) 
+    const res = await getResourceList({
+      current: pagination.value.current,
+      size: pagination.value.size
+    })
+    resourceList.value = res.data.records
+    pagination.value.total = res.data.total
+    console.log('获取到的资源数据:', res.data.records) 
+  } catch (error) {
+    console.error('获取资源列表失败:', error) 
+    ElMessage.error('获取资源列表失败')
+  }
 }
 
 const handlePageChange = (page) => {
@@ -437,11 +444,23 @@ const handleSubmit = async () => {
 
 const handleDelete = async (id) => {
   try {
+    console.log('准备删除ID:', id) 
+    await ElMessageBox.confirm('确定要删除该资源吗？此操作不可恢复。', '警告', {
+      confirmButtonText: '确定删除',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    
+    console.log('确认删除，调用deleteResource函数') 
     await deleteResource(id)
+    console.log('删除成功')
     ElMessage.success('删除成功')
     fetchResourceList()
   } catch (error) {
-    ElMessage.error('删除失败')
+    if (error !== 'cancel') {
+      console.error('删除失败:', error) 
+      ElMessage.error('删除失败，请稍后重试')
+    }
   }
 }
 </script>
