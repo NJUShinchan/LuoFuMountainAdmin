@@ -328,8 +328,7 @@ const fetchResourceList = async () => {
   try {
     console.log('获取资源列表，页码:', pagination.value.current) 
     const res = await getResourceList({
-      current: pagination.value.current,
-      size: pagination.value.size
+      page: pagination.value.current,   
     })
     resourceList.value = res.data.records
     pagination.value.total = res.data.total
